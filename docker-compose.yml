@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  vector-db:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  html2vector:
+    build:
+      context: ./html2vector
+    image: html2vector:latest
+    ports:
+      - "8001:8001"
+    depends_on:
+      - vector-db
+    restart: unless-stopped
