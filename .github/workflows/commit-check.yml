@@ -1,23 +1,34 @@
 name: Check Commit Message Format
 
-on: push
+on:
+  push:
+    branches:    # Runs on all branches
+      - "**"
+  pull_request:
+    branches:    # Checks pull requests for all branches
+      - "**"
 
 jobs:
   commit-message-check:
     runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
 
-    - name: Check commit message format
-      run: |
-        commits=$(git log --format=%s -n 1 ${GITHUB_SHA})
-        for commit in $commits; do
-          if [[ ! $commit =~ ^HOT[0-9]+: ]]; then
-            echo "❌ Invalid commit message: $commit"
-            echo "Commit message must follow the format: 'HOT<issue-number>: <Capitalized description>'"
-            exit 1
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Run the commit message check
+      - name: Validate commit messages
+        run: |
+          # Retrieve the latest commit message
+          commit_message=$(git log -1 --pretty=%s)
+
+          # Validate the commit message format
+          if [[ ! "$commit_message" =~ ^HOT[0-9]+:\ [A-Z] ]]; then
+              echo "❌ Invalid commit message: '$commit_message'"
+              echo "Commit message must follow the format: 'HOT<issue-number>: <Capitalized description>'"
+              exit 1
           fi
-        done
-        echo "✅ All commit messages follow the required format."
-      shell: bash
+
+          echo "✅ Commit message is valid: '$commit_message'"
+        shell: bash
