@@ -1,0 +1,30 @@
+name: Check Commit Message Format
+
+on: push
+
+jobs:
+  commit-message-check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Retrieve the latest commit message
+      id: get_commit_message
+      run: echo "message=$(git log -1 --pretty=%s)" >> $GITHUB_ENV
+
+    - name: Check commit message format
+      run: |
+        if [[ "$message" =~ ^Merge\ .+ ]]; then
+          echo "Merge commit detected, skipping commit message check."
+          exit 0
+        fi
+
+        if [[ ! "$message" =~ ^HOT[0-9]+: ]]; then
+          echo "❌ Invalid commit message: '$message'"
+          echo "Commit message must follow the format: 'HOT<issue-number>: <Capitalized description>'"
+          exit 1
+        fi
+        echo "✅ Commit message is valid: '$message'"
+      shell: bash
+      
