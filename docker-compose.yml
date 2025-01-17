@@ -16,3 +16,13 @@ services:
     depends_on:
       - vector-db
     restart: unless-stopped
+  
+  queryapi:
+    build:
+      context: ./queryapi
+    image: queryapi:latest
+    ports:
+      - "8002:8002"
+    depends_on:
+      - vector-db
+    restart: unless-stopped
