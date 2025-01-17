@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import chromadb
-from chromadb.config import Settings
-
+from transformers import pipeline
+import os
 
 # Initialize ChromaDB client
 vector_db = chromadb.HttpClient(host='http://vector-db:8000')
@@ -11,10 +11,14 @@ vector_db = chromadb.HttpClient(host='http://vector-db:8000')
 collection_name = 'html_embeddings'
 collection = vector_db.get_or_create_collection(collection_name)
 
+# Load Hugging Face's LLM pipeline
+# You can use a lightweight model like GPT-Neo for faster inference
+llm = pipeline('text-generation', model='EleutherAI/gpt-neo-1.3B', device=-1)
+
 # FastAPI app configuration
 app = FastAPI()
 
-
+# Input models
 class QueryInput(BaseModel):
     """
     Input model for the /query endpoint.
@@ -35,37 +39,57 @@ def health_check():
 
 
 @app.post('/query')
-def query_vector_database(input_data: QueryInput):
+def query_with_llm(input_data: QueryInput):
     """
-    Performs a semantic search on the vector database and retrieves the most relevant results.
+    Performs a semantic search and generates a response using an open-source LLM.
 
     Args:
-        input_data (QueryInput): The input query string for semantic search.
+        input_data (QueryInput): The input question for the semantic search and LLM.
 
     Returns:
         dict: A dictionary containing:
             - A success message.
-            - A list of the top results with their metadata and relevance scores.
-
-    Raises:
-        HTTPException: If a ValueError or unexpected error occurs during processing.
+            - The generated response from the LLM.
+            - The context retrieved from the vector database.
     """
     try:
-        # Perform a semantic search using the query
+        # Step 1: Query the vector database
         results = collection.query(
             query_texts=[input_data.query],
-            n_results=5  # Return top 5 results
+            n_results=3  # Return top 5 results
         )
 
-        # Format the results
-        formatted_results = []
-        for metadatas_list, distances_list in zip(results['metadatas'], results['distances']):
-            for metadata, score in zip(metadatas_list, distances_list):
-                formatted_results.append({'content': metadata['content'], 'score': score})
+        # Step 2: Format the context from the vector database
+        context = '\n'.join(
+            metadata['content']
+            for metadatas_list in results['metadatas']
+            for metadata in metadatas_list
+        )
+
+        if not context.strip():
+            raise ValueError('No relevant context found in the vector database.')
+
+        # Step 3: Use the open-source LLM to generate a response
+        prompt = (
+            f"Você é um assistente especializado em responder perguntas com base no contexto fornecido.\n\n"
+            f"Contexto:\n{context}\n\n"
+            f"Pergunta: {input_data.query}\n\n"
+            f"Resposta:"
+        )
+
+        llm_response = llm(
+            prompt,
+            max_new_tokens=150,
+            temperature=0.7,
+            top_p=0.9,
+            num_return_sequences=1
+        )[0]['generated_text']
 
         return {
-            'message': 'Query executed successfully',
-            'results': formatted_results
+            'message': 'Query and response generated successfully',
+            'query': input_data.query,
+            'context': context,
+            'response': llm_response
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

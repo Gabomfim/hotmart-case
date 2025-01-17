@@ -1,6 +1,6 @@
 # **Hotmart Case**
 
-This project provides two microservices, **HTML2VectorAPI** and **QueryAPI**, to enable semantic text processing and search functionality using a vector database (powered by ChromaDB). The APIs allow users to process HTML content, store semantic embeddings, and perform semantic queries to retrieve relevant results.
+This project provides two microservices, **HTML2VectorAPI** and **QueryAPI**, enabling semantic text processing, storage, and retrieval with enhanced LLM-powered contextual responses. It leverages a vector database (**ChromaDB**) to store semantic embeddings and uses an open-source LLM (**GPT-Neo 1.3B**) for generating responses based on retrieved context.
 
 ## **Table of Contents**
 
@@ -11,15 +11,15 @@ This project provides two microservices, **HTML2VectorAPI** and **QueryAPI**, to
 - [API Endpoints](#api-endpoints)
 - [Testing](#testing)
 - [Technologies Used](#technologies-used)
+- [Known Issues](#known-issues)
 - [Future Enhancements](#future-enhancements)
-
 
 ## **Overview**
 
 This project demonstrates the ability to:
-- Extract meaningful text content from HTML documents.
+- Extract meaningful text content from HTML documents via the **HTML2VectorAPI**.
 - Generate and store semantic embeddings in a vector database.
-- Perform semantic searches using the stored embeddings to retrieve the most relevant results.
+- Perform semantic searches and use an **LLM** to generate contextual answers via the **QueryAPI**.
 
 ## **Architecture**
 
@@ -36,21 +36,25 @@ The system consists of three main components:
 
 3. **QueryAPI (`queryapi`)**:
    - Performs semantic searches on the vector database.
-   - Returns the most relevant results with metadata and similarity scores.
+   - Uses the retrieved context to generate human-like responses with **GPT-Neo 1.3B**.
 
 ## **Features**
 
 - **Text Processing**:
-  - Removes unnecessary tags (e.g., `<script>`, `<style>`).
-  - Filters out short or irrelevant text blocks.
-  - Merges inline elements (e.g., `<span>`, `<b>`) into parent blocks for consistency.
+   - Removes unnecessary tags (e.g., `<script>`, `<style>`).
+   - Cleans and filters paragraphs to ensure quality embeddings.
 
 - **Semantic Embeddings**:
-  - Generates embeddings using **Sentence Transformers**.
-  - Stores embeddings in a vector database for efficient search and retrieval.
+   - Generates embeddings using **Sentence Transformers**.
+   - Stores embeddings in a vector database for efficient search and retrieval.
+
+- **LLM Integration**:
+   - Uses the **GPT-Neo 1.3B** model to provide detailed, human-like answers based on retrieved context.
+   - Supports custom prompts and controlled text generation.
 
 - **Semantic Search**:
-  - Allows users to query stored embeddings to retrieve the most relevant text results.
+   - Retrieves the most relevant context for a query.
+   - Combines results into a coherent input for the LLM.
 
 ## **Setup Instructions**
 
@@ -58,7 +62,7 @@ The system consists of three main components:
 
 - Docker and Docker Compose installed.
 - Python 3.10+ (for local development).
-- Basic knowledge of FastAPI and Docker.
+- At least 16GB VRAM for the LLM component, or use CPU with reduced performance.
 
 ### Steps
 
@@ -116,20 +120,19 @@ The system consists of three main components:
   {"status": "running"}
   ```
 
-#### Query
+#### Query with LLM
 - **URL**: `POST /query`
 - **Input**:
   ```json
-  {"query": "example search text"}
+  {"query": "Como ser um afiliado?"}
   ```
 - **Response**:
   ```json
   {
-      "message": "Query executed successfully",
-      "results": [
-          {"content": "Relevant text 1", "score": 0.95},
-          {"content": "Relevant text 2", "score": 0.90}
-      ]
+      "message": "Query and response generated successfully",
+      "query": "Como ser um afiliado?",
+      "context": "Relevant content 1\nRelevant content 2",
+      "response": "To become an affiliate, you need to..."
   }
   ```
 
@@ -137,24 +140,24 @@ The system consists of three main components:
 
 To test the services:
 
-1. **Health Check:**
+1. **Health Checks**:
    ```bash
    curl http://localhost:8001/
    curl http://localhost:8002/
    ```
 
-2. **Process URL:**
+2. **Process URL**:
    ```bash
    curl -X POST http://localhost:8001/process-url \
         -H "Content-Type: application/json" \
-        -d '{"url": "https://example.com"}'
+        -d '{"url": "https://hotmart.com/pt-br/blog/como-funciona-hotmart"}'
    ```
 
-3. **Query:**
+3. **Query with LLM**:
    ```bash
    curl -X POST http://localhost:8002/query \
         -H "Content-Type: application/json" \
-        -d '{"query": "example search text"}'
+        -d '{"query": "Como ser um afiliado?"}'
    ```
 
 ## **Technologies Used**
@@ -162,22 +165,28 @@ To test the services:
 - **FastAPI**: Framework for building APIs.
 - **ChromaDB**: Vector database for semantic embeddings.
 - **Sentence Transformers**: Library for generating semantic embeddings.
-- **BeautifulSoup**: Library for parsing and cleaning HTML.
+- **Hugging Face Transformers**: For LLM-based text generation.
 - **Docker & Docker Compose**: For containerization and orchestration.
+
+## **Known Issues**
+
+- The chosen LLM(`EleutherAI/gpt-neo-1.3B`) is prone to hallucinating, but since the processing power is limited, it was chosen to perform faster inferences.
+- Context needs to be better extracted by joining paragraphs, headers and lists.
+- The API takes a significant time to respond, so be pacient.
 
 ## **Future Enhancements**
 
-- **Authentication**:
-  - Add API key-based authentication for secure access.
+- **Fine-Tune LLM**:
+   - Customize the LLM for specific use cases to improve relevance and accuracy.
 
 - **Deployment**:
-  - Deploy the service in production environment.
+   - Deploy the service in production environment with a better model.
 
-- **Configurable Parameters**:
-  - Allow users to specify the number of results returned or the minimum paragraph length dynamically.
+- **Authentication**:
+   - Add API key-based authentication for secure access.
 
-- **Additional Integrations**:
-  - Support other embedding models or databases.
+- **Dynamic Context Size**:
+   - Allow users to specify the number of results or tokens for the response.
 
-- **Error Monitoring**:
-  - Implement logging and monitoring tools.
+- **Enhanced Monitoring**:
+   - Integrate logging and monitoring tools.
